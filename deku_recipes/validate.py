@@ -56,7 +56,7 @@ def _https_url(value: Any, label: str, *, source_url: bool = False) -> None:
         not any(char.isspace() or ord(char) < 0x21 or ord(char) == 0x7F for char in value),
         f"{label} must not contain whitespace or control characters",
     )
-    require("\\\\" not in value, f"{label} must not contain backslashes")
+    require(chr(92) not in value, f"{label} must not contain backslashes")
 
     try:
         parsed = urlparse(value)
