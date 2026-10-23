@@ -119,6 +119,12 @@ class RecipeValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(RecipeValidationError, "trimmed string"):
             validate_recipe(recipe)
 
+    def test_source_url_length_is_bounded(self):
+        recipe = deepcopy(self.recipe)
+        recipe["source"]["url"] = "https://example.com/" + ("a" * 2_100)
+        with self.assertRaisesRegex(RecipeValidationError, "1 to 2048 characters"):
+            validate_recipe(recipe)
+
     def test_dependency_count_is_bounded(self):
         recipe = deepcopy(self.recipe)
         recipe["dependencies"] = [f"dependency-{index}" for index in range(MAX_DEPENDENCIES + 1)]
