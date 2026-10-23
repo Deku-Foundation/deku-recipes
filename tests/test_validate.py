@@ -1,9 +1,10 @@
 from copy import deepcopy
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
-from deku_recipes.validate import RecipeValidationError, load_and_validate, validate_recipe
+from deku_recipes.validate import MAX_DEPENDENCIES, MAX_RECIPE_BYTES, RecipeValidationError, load_and_validate, validate_recipe
 
 EXAMPLE = Path(__file__).parents[1] / "examples" / "hello.json"
 
@@ -47,6 +48,80 @@ class RecipeValidationTests(unittest.TestCase):
         recipe["architectures"] = ["x86_64", "x86_64"]
         with self.assertRaisesRegex(RecipeValidationError, "duplicates"):
             validate_recipe(recipe)
+
+    def test_boolean_schema_version_is_rejected(self):
+        recipe = deepcopy(self.recipe)
+        recipe["schema_version"] = True
+        with self.assertRaisesRegex(RecipeValidationError, "schema_version"):
+            validate_recipe(recipe)
+
+    def test_version_cannot_contain_path_or_control_characters(self):
+        for version in ["../1.0", "1.0\\n0", " 1.0", "1.0 "]:
+            recipe = deepcopy(self.recipe)
+            recipe["version"] = version
+            with self.subTest(version=version):
+                with self.assertRaisesRegex(RecipeValidationError, "invalid package version"):
+                    validate_recipe(recipe)
+
+    def test_source_url_query_and_fragment_are_rejected(self):
+        for suffix in ["?token=private", "#moving-target"]:
+            recipe = deepcopy(self.recipe)
+            recipe["source"]["url"] += suffix
+            with self.subTest(suffix=suffix):
+                with self.assertRaisesRegex(RecipeValidationError, "query string or fragment"):
+                    validate_recipe(recipe)
+
+    def test_source_url_invalid_port_is_rejected(self):
+        recipe = deepcopy(self.recipe)
+        recipe["source"]["url"] = "https://example.com:invalid/repo.git"
+        with self.assertRaisesRegex(RecipeValidationError, "well-formed HTTPS URL"):
+            validate_recipe(recipe)
+
+    def test_source_url_empty_port_is_rejected(self):
+        recipe = deepcopy(self.recipe)
+        recipe["source"]["url"] = "https://example.com:/repo.git"
+        with self.assertRaisesRegex(RecipeValidationError, "empty port"):
+            validate_recipe(recipe)
+
+    def test_source_url_backslashes_are_rejected(self):
+        recipe = deepcopy(self.recipe)
+        recipe["source"]["url"] = "https://example.com\\\\repo.git"
+        with self.assertRaisesRegex(RecipeValidationError, "backslashes"):
+            validate_recipe(recipe)
+
+    def test_dependency_count_is_bounded(self):
+        recipe = deepcopy(self.recipe)
+        recipe["dependencies"] = [f"dependency-{index}" for index in range(MAX_DEPENDENCIES + 1)]
+        with self.assertRaisesRegex(RecipeValidationError, "at most"):
+            validate_recipe(recipe)
+
+    def test_oversized_recipe_is_rejected_before_deserialization(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "oversized.json"
+            path.write_bytes(b" " * (MAX_RECIPE_BYTES + 1))
+            with self.assertRaisesRegex(RecipeValidationError, "input limit"):
+                load_and_validate(path)
+
+    def test_duplicate_json_object_keys_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "duplicate.json"
+            path.write_text('{"schema_version":1,"schema_version":1}', encoding="utf-8")
+            with self.assertRaisesRegex(RecipeValidationError, "duplicate JSON object key"):
+                load_and_validate(path)
+
+    def test_invalid_utf8_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "invalid.json"
+            path.write_bytes(b'{"invalid":"' + bytes([0xFF]) + b'"}')
+            with self.assertRaisesRegex(RecipeValidationError, "valid UTF-8 JSON"):
+                load_and_validate(path)
+
+    def test_excessive_json_nesting_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "deep.json"
+            path.write_bytes(b"[" * 10_000 + b"0" + b"]" * 10_000)
+            with self.assertRaisesRegex(RecipeValidationError, "valid UTF-8 JSON"):
+                load_and_validate(path)
 
     def test_unknown_fields_are_rejected(self):
         recipe = deepcopy(self.recipe)
