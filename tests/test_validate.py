@@ -109,7 +109,7 @@ class RecipeValidationTests(unittest.TestCase):
 
     def test_source_url_control_characters_are_rejected(self):
         recipe = deepcopy(self.recipe)
-        recipe["source"]["url"] = "https://example.com/repo.git\\n"
+        recipe["source"]["url"] = "https://example.com/repo.git" + chr(10)
         with self.assertRaisesRegex(RecipeValidationError, "whitespace or control"):
             validate_recipe(recipe)
 
