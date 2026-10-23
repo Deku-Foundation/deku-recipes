@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "name": "hello-example",
+  "version": "1.0.0",
+  "summary": "Illustrative recipe metadata for validator tests",
+  "license": "MIT",
+  "source": {
+    "url": "https://example.invalid/hello.git",
+    "revision": "0123456789abcdef0123456789abcdef01234567",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "architectures": ["x86_64"],
+  "dependencies": [],
+  "homepage": "https://example.invalid/"
+}
