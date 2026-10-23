@@ -85,8 +85,38 @@ class RecipeValidationTests(unittest.TestCase):
 
     def test_source_url_backslashes_are_rejected(self):
         recipe = deepcopy(self.recipe)
-        recipe["source"]["url"] = "https://example.com\\\\repo.git"
+        recipe["source"]["url"] = "https://example.com\\repo.git"
         with self.assertRaisesRegex(RecipeValidationError, "backslashes"):
+            validate_recipe(recipe)
+
+    def test_non_https_source_is_rejected(self):
+        recipe = deepcopy(self.recipe)
+        recipe["source"]["url"] = "http://example.com/repo.git"
+        with self.assertRaisesRegex(RecipeValidationError, "absolute HTTPS URL"):
+            validate_recipe(recipe)
+
+    def test_malformed_ipv6_source_url_is_rejected(self):
+        recipe = deepcopy(self.recipe)
+        recipe["source"]["url"] = "https://[::1/repo.git"
+        with self.assertRaisesRegex(RecipeValidationError, "well-formed HTTPS URL"):
+            validate_recipe(recipe)
+
+    def test_homepage_credentials_are_rejected(self):
+        recipe = deepcopy(self.recipe)
+        recipe["homepage"] = "https://user:password@example.com/"
+        with self.assertRaisesRegex(RecipeValidationError, "embedded credentials"):
+            validate_recipe(recipe)
+
+    def test_source_url_control_characters_are_rejected(self):
+        recipe = deepcopy(self.recipe)
+        recipe["source"]["url"] = "https://example.com/repo.git\\n"
+        with self.assertRaisesRegex(RecipeValidationError, "whitespace or control"):
+            validate_recipe(recipe)
+
+    def test_summary_must_not_have_outer_whitespace(self):
+        recipe = deepcopy(self.recipe)
+        recipe["summary"] = " summary "
+        with self.assertRaisesRegex(RecipeValidationError, "trimmed string"):
             validate_recipe(recipe)
 
     def test_dependency_count_is_bounded(self):
