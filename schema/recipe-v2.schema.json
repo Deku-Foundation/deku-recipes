@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deku-foundation.github.io/schemas/recipe-v2.schema.json",
+  "title": "Deku Recipe v2",
+  "description": "Declarative recipe contract. Validation does not authorize or execute a build.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "version", "summary", "license", "source", "targets", "dependencies", "patches", "build", "outputs", "tests"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9+._-]{0,127}$" },
+    "version": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.+:~_-]{0,127}$" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "license": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "url", "revision", "sha256"],
+      "properties": {
+        "type": { "const": "git" },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["architecture", "abi"],
+        "properties": {
+          "architecture": { "enum": ["x86_64", "aarch64"] },
+          "abi": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$" }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "runtime", "optional"],
+      "properties": {
+        "build": { "$ref": "#/$defs/dependencies" },
+        "runtime": { "$ref": "#/$defs/dependencies" },
+        "optional": { "$ref": "#/$defs/dependencies" }
+      }
+    },
+    "patches": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "$ref": "#/$defs/relativePath" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment_image", "network", "steps"],
+      "properties": {
+        "environment_image": { "type": "string", "pattern": "^[a-z0-9][A-Za-z0-9._/:@-]{0,254}@sha256:[0-9a-f]{64}$" },
+        "network": { "const": "disabled" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/step" }
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind"],
+        "properties": {
+          "path": { "$ref": "#/$defs/relativePath" },
+          "kind": { "enum": ["package", "file", "directory"] }
+        }
+      }
+    },
+    "tests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/step" }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
+    "dependencies": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "constraint"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9+._-]{0,127}$" },
+          "constraint": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argv", "cwd", "timeout_seconds"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$" },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+        },
+        "cwd": { "type": "string", "maxLength": 200 },
+        "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 3600 }
+      }
+    }
+  }
+}
