@@ -1,0 +1,63 @@
+{
+  "schema_version": 2,
+  "name": "hello-example",
+  "version": "0.1.0",
+  "summary": "Illustrative test package; build inputs are placeholders",
+  "license": "MIT OR Apache-2.0",
+  "source": {
+    "type": "git",
+    "url": "https://example.invalid/deku/hello.git",
+    "revision": "0123456789abcdef0123456789abcdef01234567",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "targets": [
+    {
+      "architecture": "x86_64",
+      "abi": "deku-abi-prototype-1"
+    }
+  ],
+  "dependencies": {
+    "build": [],
+    "runtime": [],
+    "optional": []
+  },
+  "patches": [],
+  "build": {
+    "environment_image": "ghcr.io/deku-foundation/build-env@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "network": "disabled",
+    "steps": [
+      {
+        "name": "compile",
+        "argv": ["./configure", "--prefix=/usr"],
+        "cwd": ".",
+        "timeout_seconds": 600
+      },
+      {
+        "name": "build",
+        "argv": ["make", "-j2"],
+        "cwd": ".",
+        "timeout_seconds": 1200
+      },
+      {
+        "name": "package",
+        "argv": ["make", "DESTDIR=staging", "install"],
+        "cwd": ".",
+        "timeout_seconds": 600
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "path": "dist/hello.pkg",
+      "kind": "package"
+    }
+  ],
+  "tests": [
+    {
+      "name": "version",
+      "argv": ["./staging/usr/bin/hello", "--version"],
+      "cwd": ".",
+      "timeout_seconds": 30
+    }
+  ]
+}
