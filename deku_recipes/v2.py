@@ -166,6 +166,15 @@ def _validate_step(step: Any, label: str, names: set[str]) -> None:
     require(type(timeout) is int and 1 <= timeout <= 3600, f"{label}.timeout_seconds must be an integer from 1 to 3600")
 
 
+def _validate_pinned_oci_image(value: Any) -> None:
+    require(isinstance(value, str) and OCI_DIGEST_IMAGE.fullmatch(value) is not None, "build.environment_image must be pinned by an immutable OCI sha256 digest")
+    name = value.split("@sha256:", 1)[0]
+    parts = name.split("/")
+    require(all(parts), "build.environment_image has an empty path component")
+    segment_pattern = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*(?::[0-9]{1,5})?$")
+    require(all(part not in {".", ".."} and segment_pattern.fullmatch(part) is not None for part in parts), "build.environment_image contains an invalid registry/repository component")
+
+
 def validate_recipe_v2(recipe: Any) -> dict[str, Any]:
     """Validate metadata only; never fetch sources, execute argv or build a package."""
     required = {"schema_version", "name", "version", "summary", "license", "source", "targets", "dependencies", "patches", "build", "outputs", "tests"}
@@ -188,7 +197,7 @@ def validate_recipe_v2(recipe: Any) -> dict[str, Any]:
     seen_targets: set[tuple[str, str]] = set()
     for target in targets:
         require(isinstance(target, dict) and set(target) == {"architecture", "abi"}, "each target must contain architecture and abi only")
-        require(target["architecture"] in ARCHITECTURES, "unsupported target architecture")
+        require(isinstance(target["architecture"], str) and target["architecture"] in ARCHITECTURES, "unsupported target architecture")
         require(isinstance(target["abi"], str) and TOKEN.fullmatch(target["abi"]) is not None, "target.abi must be an explicit token")
         key = (target["architecture"], target["abi"])
         require(key not in seen_targets, "duplicate target architecture/ABI")
@@ -222,7 +231,7 @@ def validate_recipe_v2(recipe: Any) -> dict[str, Any]:
 
     build = recipe["build"]
     require(isinstance(build, dict) and set(build) == {"environment_image", "network", "steps"}, "build must contain environment_image, network and steps only")
-    require(isinstance(build["environment_image"], str) and OCI_DIGEST_IMAGE.fullmatch(build["environment_image"]) is not None, "build.environment_image must be pinned by an immutable OCI sha256 digest")
+    _validate_pinned_oci_image(build["environment_image"])
     require(build["network"] == "disabled", "build network must be disabled")
     steps = build["steps"]
     require(isinstance(steps, list) and 0 < len(steps) <= MAX_BUILD_STEPS, f"build.steps must contain 1 to {MAX_BUILD_STEPS} entries")
@@ -237,7 +246,7 @@ def validate_recipe_v2(recipe: Any) -> dict[str, Any]:
     for output in outputs:
         require(isinstance(output, dict) and set(output) == {"path", "kind"}, "output entries must contain path and kind only")
         path = _safe_relative_path(output["path"], "output.path")
-        require(output["kind"] in {"package", "file", "directory"}, "unsupported output kind")
+        require(isinstance(output["kind"], str) and output["kind"] in {"package", "file", "directory"}, "unsupported output kind")
         require(path not in output_paths, "duplicate output path")
         output_paths.add(path)
         output_kinds[path] = output["kind"]
