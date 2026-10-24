@@ -22,3 +22,5 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Validate example recipe
         run: PYTHONPATH=. python -m deku_recipes.validate_cli examples/hello.json
+      - name: Validate example recipe v2
+        run: PYTHONPATH=. python -m deku_recipes.validate_v2_cli examples/hello-v2.json
